@@ -990,6 +990,18 @@ func (r *ReadSeeker) Seek(offset int64, whence int) (int64, error) {
 		return 0, errors.New("seek before start of file")
 	}
 
+	if r.blockStart <= offset && offset < r.blockStart+int64(r.j) {
+		// same block, can fastward
+		var err error
+		now := r.blockStart + int64(r.i)
+		if offset < now {
+			r.i -= int(now - offset)
+		} else if now < offset {
+			err = r.Skip(offset - now)
+		}
+		return r.blockStart + int64(r.i), err
+	}
+
 	c, u, err := r.index.Find(offset)
 	if err != nil {
 		return r.blockStart + int64(r.i), err
